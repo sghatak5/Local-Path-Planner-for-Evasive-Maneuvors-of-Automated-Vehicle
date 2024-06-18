@@ -104,19 +104,3 @@ def simulate_vehicle_with_pid(pid, trajectories, vehicle, dt, sim_time):
         y_positions.append(vehicle.y)
 
     return x_positions, y_positions, trajectory_x, trajectory_y
-
-    if ax is None:
-        ax = plt.gca()
-    ax.set_title("Vehicle Trajectory with PID Control")
-    ax.plot(x_positions, y_positions, label="Vehicle Trajectory")
-    ax.plot(trajectory_x, trajectory_y, label="Desired Trajectory", linestyle='dashed')
-    if pedestrian_trajectory:
-        ax.scatter(pedestrian_trajectory[0], pedestrian_trajectory[1], label="Pedestrian Trajectory", color='green', s=10)
-    ax.scatter(x_positions[0], y_positions[0], color='red', label="Start Position")
-    ax.set_xlabel("X Position (m)")
-    ax.set_ylabel("Y Position (m)")
-    ax.legend()
-    ax.grid(True)
-    #ax.axis('equal')
-    #ax.set_xlim(left=0)
-    ax.set_ylim(-10, 10)
