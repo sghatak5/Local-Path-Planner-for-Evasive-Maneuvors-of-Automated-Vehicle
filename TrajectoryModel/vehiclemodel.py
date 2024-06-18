@@ -7,9 +7,9 @@ class Vehicle:
         self.vel = vel
         self.x = x
         self.y = y
-        self.delta = delta
-        self.dt = dt
-        self.beta = 0 
+        self.delta = delta  #Steering Angle
+        self.dt = dt 
+        self.beta = 0  #Body Slip angle
         self.r = 0  
         self.yaw = 0  
 
@@ -21,11 +21,11 @@ class Vehicle:
         self.wheel_width = 0.125
         self.track = 1.094
         self.wheel_base = 1.686
-        self.Caf = 2*32857.5
-        self.Car = 2*32857.5
+        self.Caf = 2*32857.5  #Side slip coeff in front
+        self.Car = 2*32857.5  #Side slip coeff in rear
         self.mass = 633
-        self.lf = 0.9442
-        self.lr = 0.7417
+        self.lf = 0.9442  #Front axle to CoM
+        self.lr = 0.7417  #Rear axle to CoM
         self.Iz = 430.166
 
 

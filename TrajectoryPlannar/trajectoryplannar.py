@@ -1,7 +1,6 @@
-# Importing libraries
 import numpy as np 
 import matplotlib.pyplot as plt
-
+import time as tm
 
 class TrajectoryPlanner:
     def __init__(self, s0, v0, a0, sf, vf, af, ttc, ego_v):
@@ -29,11 +28,13 @@ class TrajectoryPlanner:
         return self.ego_v * t
 
     def calc_y_coord(self, t):
+        #print(f"self.c0:{self.c0}, self.c1 * t:{self.c1 * t}, self.c2 * t **2:{self.c2 * t **2}, self.c3 * t**3:{self.c3 * t**3}, self.c4 * t**4:{self.c4 * t**4}, self.c5 * t**5:{self.c5 * t**5}")
         return self.c0 + self.c1 * t + self.c2 * t **2 + self.c3 * t**3 + self.c4 * t**4 + self.c5 * t**5
 
 
 def plot_trajectories(trajectories, pedestrian_trajectory=None):
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
+    #print(len(trajectories[0][2]))
     plt.title("Coordinate of the center of rear axle")
     
     for traj in trajectories:
@@ -44,83 +45,91 @@ def plot_trajectories(trajectories, pedestrian_trajectory=None):
     
     plt.xlabel("x [m]")
     plt.ylabel("y [m]")
+    plt.ylim(-10, 10)
+    plt.xlim(left=0)
     plt.axis('equal')
     plt.grid()
     plt.legend()
     plt.show()
 
 
-def calculate_trajectory1(s0, v0, a0, sf, vf, af, ego_v):
-    ttc = 0.5
-    trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
-    t_list = np.arange(0, ttc, 0.002)
-    vehicle_x_list = [trajectory.calc_x_coord(t) for t in t_list]
-    vehicle_y_list = [trajectory.calc_y_coord(t) for t in t_list]
-    return vehicle_x_list, vehicle_y_list, "Trajectory 1"
+def calculate_trajectory(trajectory_type, s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t, time):
+    # if trajectory_type == 1:
+    #     ttc = trigger_t
+    #     label = "Trajectory 1"
+    if trajectory_type == 2:
+        pedestrian_x_start = 100
+        pedestrian_y_start = -2
+        ttc = (pedestrian_x_start - (ego_v * time) )/ ego_v
+        print(f"Time to collision: {ttc}")
+        label = "Trajectory 2"
+    elif trajectory_type == 3:
+        ttc = 0.5
+        label = "Trajectory 3"
+    elif trajectory_type == 4:
+        ttc = 3
+        label = "Trajectory 4"
+    else:
+        raise ValueError("Invalid trajectory type")
 
+    
+    if trajectory_type ==2:
+        trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
+        x_t_list = np.arange(time, time + ttc, 0.02)
+        y_t_list = np.arange(0, ttc, 0.02)
+        vehicle_x_list = [trajectory.calc_x_coord(t) for t in x_t_list]
+        #print(f"Trajectory{trajectory_type}: t_list: {t_list}, length of t_list: {len(t_list)}")
+        #print(f"vehicle_x_list: {vehicle_x_list}, length of vehicle_x_list: {len(vehicle_x_list)}")
+        vehicle_y_list = [trajectory.calc_y_coord(t) for t in y_t_list]
+        #print(f"vehicle_y_list: {vehicle_y_list}, length of vehicle_y_list: {len(vehicle_y_list)}")
+    else: 
+        trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
+        x_t_list = np.arange(time, time + ttc, 0.02)
+        y_t_list = np.arange(0, ttc, 0.02)
+        #print(t_list)
+        vehicle_x_list = [trajectory.calc_x_coord(t) for t in x_t_list]
+        #print(f"Trajectory{trajectory_type}: t_list: {t_list}, length of t_list: {len(t_list)}")
+       # print(f"vehicle_x_list: {vehicle_x_list}, length of vehicle_x_list: {len(vehicle_x_list)}")
+        vehicle_y_list = [trajectory.calc_y_coord(t) for t in y_t_list]
 
-def calculate_trajectory2(s0, v0, a0, sf, vf, af, ego_v, ped_v, time):
-    pedestrian_x_start = 6
-    pedestrian_y_start = -2
-    ttc = pedestrian_x_start / ego_v
-    trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
-    t_list = np.arange(0, ttc, 0.002)
-    vehicle_x_list = [time + trajectory.calc_x_coord(t) for t in t_list]
-    vehicle_y_list = [trajectory.calc_y_coord(t) for t in t_list]
-    pedestrian_x_list = [time + pedestrian_x_start] * len(t_list)
-    pedestrian_y_list = [pedestrian_y_start + ped_v * t for t in t_list]
-    index_to_trim = None
-    for i in range(len(pedestrian_y_list)):
-        if pedestrian_y_list[i] >= 0:
-            index_to_trim = i
-            break
-    f_pedestrian_x_list = pedestrian_x_list[:index_to_trim]
-    f_pedestrian_y_list = pedestrian_y_list[:index_to_trim]
-    return vehicle_x_list, vehicle_y_list, "Trajectory 2", f_pedestrian_x_list, f_pedestrian_y_list
-
-
-def calculate_trajectory3(s0, v0, a0, sf, vf, af, ego_v, time):
-    ttc = 0.1
-    trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
-    t_list = np.arange(0, ttc, 0.002)
-    vehicle_x_list = [time + trajectory.calc_x_coord(t) for t in t_list]
-    vehicle_y_list = [trajectory.calc_y_coord(t) for t in t_list]
-    return vehicle_x_list, vehicle_y_list, "Trajectory 3"
-
-
-def calculate_trajectory4(s0, v0, a0, sf, vf, af, ego_v, time):
-    ttc = 0.8
-    trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
-    t_list = np.arange(0, ttc, 0.002)
-    vehicle_x_list = [time + trajectory.calc_x_coord(t) for t in t_list]
-    vehicle_y_list = [trajectory.calc_y_coord(t) for t in t_list]
-    return vehicle_x_list, vehicle_y_list, "Trajectory 4"
-
+    if trajectory_type == 2:
+        ped_t = time + ttc
+        t_list_ped = np.arange(0, ped_t, 0.2)
+        pedestrian_x_list = [pedestrian_x_start] * len(t_list_ped)
+        #print(pedestrian_x_list)
+        pedestrian_y_list = [pedestrian_y_start + ped_v * t for t in t_list_ped]
+       # print(pedestrian_y_list)
+        return vehicle_x_list, vehicle_y_list, label, x_t_list, pedestrian_x_list, pedestrian_y_list
+    else:
+        return vehicle_x_list, vehicle_y_list, label, x_t_list
 
 def main():
-    s0, v0, a0, sf, vf, af, ego_v, ped_v = 0, 0, 0, 0, 0, 0, 8.3, 3
+    s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t = 0, 0, 0, 3.5, 0, 0, 5, 0.15, 18.5 
+
+
     
-    traj1 = calculate_trajectory1(s0, v0, a0, sf, vf, af, ego_v)
+    #traj1 = calculate_trajectory(1, s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t,time=0)
     
-    s0 = traj1[1][-1]
-    sf = 3.5
-    time = traj1[0][-1]
+    # s0 = traj1[1][-1]
+    # sf = 3.5
+    # time = traj1[0][-1]
+
+    #tm.sleep(trigger_t)
     
-    traj2 = calculate_trajectory2(s0, v0, a0, sf, vf, af, ego_v, ped_v, time)
+    traj2 = calculate_trajectory(2, s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t, time=trigger_t )
     
     s0 = traj2[1][-1]
     sf = 3.5
-    time = traj2[0][-1]
+    time = traj2[3][-1]
     
-    traj3 = calculate_trajectory3(s0, v0, a0, sf, vf, af, ego_v, time)
-    
+    traj3 = calculate_trajectory(3, s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t, time=time )
     s0 = traj3[1][-1]
     sf = 0
-    time = traj3[0][-1]
+    time = traj3[3][-1]
     
-    traj4 = calculate_trajectory4(s0, v0, a0, sf, vf, af, ego_v, time)
+    traj4 = calculate_trajectory(4, s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t, time=time)
     
-    plot_trajectories([traj1, traj2, traj3, traj4], pedestrian_trajectory=(traj2[3], traj2[4]))
+    plot_trajectories([traj2, traj3, traj4], pedestrian_trajectory=(traj2[4], traj2[5]))
 
 
 if __name__ == "__main__":
