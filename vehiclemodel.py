@@ -1,19 +1,21 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import time as tm
 import math
+import pidcontroller as pid
 
 class Vehicle:
     def __init__(self, x, y, delta, vel, dt):
-        self.vel = vel
-        self.x = x
-        self.y = y
-        self.delta = delta  #Steering Angle
-        self.dt = dt 
-        self.beta = 0  #Body Slip angle
-        self.r = 0  
-        self.yaw = 0  
+        self.vel = vel  # Vehicle velocity
+        self.x = x  # X position
+        self.y = y  # Y position
+        self.delta = delta  # Steering angle
+        self.dt = dt  # Time step
+        self.beta = 0  # Slip angle
+        self.r = 0  # Yaw rate
+        self.yaw = 0  # Yaw angle
 
-
+        # Vehicle parameters
         self.length = 2.338
         self.width = 1.381
         self.rear_to_wheel = 0.339
@@ -21,19 +23,22 @@ class Vehicle:
         self.wheel_width = 0.125
         self.track = 1.094
         self.wheel_base = 1.686
-        self.Caf = 2*32857.5  #Side slip coeff in front
-        self.Car = 2*32857.5  #Side slip coeff in rear
+        self.Caf = 2 * 32857.5  # Cornering stiffness front
+        self.Car = 2 * 32857.5  # Cornering stiffness rear
         self.mass = 633
-        self.lf = 0.9442  #Front axle to CoM
-        self.lr = 0.7417  #Rear axle to CoM
-        self.Iz = 430.166
+        self.lf = 0.9442  # Distance from CG to front axle
+        self.lr = 0.7417  # Distance from CG to rear axle
+        self.Iz = 430.166  # Yaw moment of inertia
 
-
+    def deg_to_rad(self, deg):
+        """Convert degrees to radians."""
+        return deg * math.pi / 180
+    
     def Motion_model(self):
-
-        
+        """Update the vehicle state based on the motion model."""
+        # System dynamics matrices
         coefficient_A = np.array([
-            [-(self.Caf + self.Car) / (self.mass * self.vel), ((self.Car * self.lr - self.Caf * self.lf) / (self.mass * self.vel**2)) - 1],
+            [-1 * (self.Caf + self.Car) / (self.mass * self.vel), ((self.Car * self.lr - self.Caf * self.lf) / (self.mass * self.vel**2)) - 1],
             [(self.Car * self.lr - self.Caf * self.lf) / self.Iz, -(self.Caf * self.lf**2 + self.Car * self.lr**2) / (self.Iz * self.vel)]
         ])
         
@@ -54,43 +59,64 @@ class Vehicle:
         self.beta += beta_dot * self.dt
         self.r += r_dot * self.dt
         self.yaw += self.r * self.dt
-        
-        self.beta = np.mod(self.beta + np.pi, 2 * np.pi) - np.pi
-        self.r = np.mod(self.r + np.pi, 2 * np.pi) - np.pi
-        self.yaw = np.mod(self.yaw + np.pi, 2 * np.pi) - np.pi
 
-        x_dot = self.vel * math.cos(self.yaw + self.beta)
-        y_dot = self.vel * math.sin(self.yaw + self.beta)
+        # Ensure yaw is within -180 to 180 degrees
+        if self.yaw > 180:
+            self.yaw -= 360
+        elif self.yaw < -180: 
+            self.yaw += 360
+
+        # Update position
+        x_dot = self.vel * math.cos(self.deg_to_rad(self.yaw + self.beta))
+        y_dot = self.vel * math.sin(self.deg_to_rad(self.yaw + self.beta))
         self.x += x_dot * self.dt
         self.y += y_dot * self.dt
 
-def simulate_vehicle():
-    x_init = 0
-    y_init = 0
-    delta = np.radians(30)
-    vel = 5
-    dt = 0.005
-    total_time = 10
     
-    vehicle = Vehicle(x_init, y_init, delta, vel, dt)
-    
+def simulate_vehicle_with_pid(pid, trajectories, vehicle, dt, sim_time):
+    # Combine all trajectory points
+    trajectory_x = []
+    trajectory_y = []
+    for traj in trajectories:
+        trajectory_x.extend(traj[0])
+        trajectory_y.extend(traj[1])
+
     x_positions = []
     y_positions = []
-    
-    for _ in np.arange(0, total_time, dt):
+
+    for t in np.arange(0, sim_time, dt):
+        if len(trajectory_x) == 0:
+            break
+
+        closest_index = np.argmin(np.hypot(np.array(trajectory_x) - vehicle.x, np.array(trajectory_y) - vehicle.y))
+        #print(closest_index)
+        #target_x = trajectory_x[closest_index]
+        target_y = trajectory_y[closest_index]
+
+        # Compute the steering angle using PID controller
+        #print(target_y, vehicle.y)
+        steering_angle = pid.compute(setpoint=target_y, current_value=vehicle.y)
+        vehicle.delta = steering_angle
+
+        # Update the vehicle state
         vehicle.Motion_model()
         x_positions.append(vehicle.x)
         y_positions.append(vehicle.y)
-    
-    plt.figure(figsize=(10, 10))
-    plt.plot(x_positions, y_positions, label="Trajectory")
-    plt.scatter(x_positions[0], y_positions[0], color='red', label="Start Position")
-    plt.title("Vehicle Circular Motion Trajectory")
-    plt.xlabel("X Position (m)")
-    plt.ylabel("Y Position (m)")
-    plt.legend()
-    plt.grid(True)
-    plt.axis('equal')
-    plt.show()
 
-simulate_vehicle()
+    return x_positions, y_positions, trajectory_x, trajectory_y
+
+    if ax is None:
+        ax = plt.gca()
+    ax.set_title("Vehicle Trajectory with PID Control")
+    ax.plot(x_positions, y_positions, label="Vehicle Trajectory")
+    ax.plot(trajectory_x, trajectory_y, label="Desired Trajectory", linestyle='dashed')
+    if pedestrian_trajectory:
+        ax.scatter(pedestrian_trajectory[0], pedestrian_trajectory[1], label="Pedestrian Trajectory", color='green', s=10)
+    ax.scatter(x_positions[0], y_positions[0], color='red', label="Start Position")
+    ax.set_xlabel("X Position (m)")
+    ax.set_ylabel("Y Position (m)")
+    ax.legend()
+    ax.grid(True)
+    #ax.axis('equal')
+    #ax.set_xlim(left=0)
+    ax.set_ylim(-10, 10)
