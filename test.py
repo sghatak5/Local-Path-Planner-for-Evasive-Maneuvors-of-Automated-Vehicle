@@ -72,20 +72,34 @@ class Vehicle:
         self.y += y_dot * self.dt
 
 class PIDController:
-    def __init__(self, Kp, Ki, Kd, dt):
+    def __init__(self, Kp, Ki, Kd, dt, windup_guard=30):
         self.Kp = Kp
         self.Ki = Ki
         self.Kd = Kd
         self.dt = dt
         self.integral = 0
         self.previous_error = 0
+        self.windup_guard = windup_guard
 
     def compute(self, setpoint, current_value):
         error = setpoint - current_value
+        
+        # Update integral term with anti-windup mechanism
         self.integral += error * self.dt
+        if self.integral > self.windup_guard:
+            self.integral = self.windup_guard
+        elif self.integral < -self.windup_guard:
+            self.integral = -self.windup_guard
+        
+        # Calculate derivative term
         derivative = (error - self.previous_error) / self.dt
+        
+        # Compute PID output
         output = self.Kp * error + self.Ki * self.integral + self.Kd * derivative
+        
+        # Update previous error for next iteration
         self.previous_error = error
+        
         return output
 
 class TrajectoryPlanner:
@@ -118,45 +132,65 @@ class TrajectoryPlanner:
     def calc_y_coord(self, t):
         return self.c0 + self.c1 * t + self.c2 * t**2 + self.c3 * t**3 + self.c4 * t**4 + self.c5 * t**5
 
-def calculate_trajectory(trajectory_type, s0, v0, a0, sf, vf, af, ego_v, ped_v=0, time=0):
+def calculate_trajectory(trajectory_type, s0, v0, a0, sf, vf, af, ego_v, ped_v, pedestrian_x_start, pedestrian_y_start, time):
+    """
+    Calculate the trajectory of the vehicle.
+
+    Parameters:
+    trajectory_type (int): Type of the trajectory.
+    s0 (float): Initial position.
+    v0 (float): Initial velocity.
+    a0 (float): Initial acceleration.
+    sf (float): Desired final position.
+    vf (float): Desired final velocity.
+    af (float): Desired final acceleration.
+    ego_v (float): Ego vehicle velocity.
+    ped_v (float): Pedestrian velocity.
+    pedestrian_x_start (float): Pedestrian starting x-coordinate.
+    pedestrian_y_start (float): Pedestrian starting y-coordinate.
+    time (float): Current time.
+
+    Returns:
+    tuple: Depending on the trajectory type, returns a tuple of vehicle and possibly pedestrian trajectory coordinates and labels.
+    """
     if trajectory_type == 1:
-        ttc = 0.3
+        pedestrian_x_start = pedestrian_x_start
+        pedestrian_y_start = pedestrian_y_start
+        ttc = (pedestrian_x_start - (ego_v * time) )/ ego_v
+        print(f"Time to collision: {ttc}")
         label = "Trajectory 1"
     elif trajectory_type == 2:
-        pedestrian_x_start = 30
-        pedestrian_y_start = -2
-        ttc = pedestrian_x_start / ego_v
-        print(ttc)
+        ttc = 0.5
         label = "Trajectory 2"
     elif trajectory_type == 3:
-        ttc = 2
+        ttc = 3
         label = "Trajectory 3"
-    elif trajectory_type == 4:
-        ttc = 18
-        label = "Trajectory 4"
     else:
         raise ValueError("Invalid trajectory type")
 
     trajectory = TrajectoryPlanner(s0, v0, a0, sf, vf, af, ttc, ego_v)
-    t_list = np.arange(0, ttc, 0.002)
-    vehicle_x_list = [time + trajectory.calc_x_coord(t) for t in t_list]
-    vehicle_y_list = [trajectory.calc_y_coord(t) for t in t_list]
+    x_t_list = np.arange(time, time + ttc, 0.02)
+    y_t_list = np.arange(0, ttc, 0.02)
+    vehicle_x_list = [trajectory.calc_x_coord(t) for t in x_t_list]
+    vehicle_y_list = [trajectory.calc_y_coord(t) for t in y_t_list]
 
-    if trajectory_type == 2:
-        pedestrian_x_list = [pedestrian_x_start] * len(t_list)
-        pedestrian_y_list = [pedestrian_y_start + ped_v * t for t in t_list]
-        index_to_trim = None
-        for i in range(len(pedestrian_y_list)):
-            if pedestrian_y_list[i] >= 0:
-                index_to_trim = i
-                break
-        f_pedestrian_x_list = pedestrian_x_list[:index_to_trim]
-        f_pedestrian_y_list = pedestrian_y_list[:index_to_trim]
-        return vehicle_x_list, vehicle_y_list, label, f_pedestrian_x_list, f_pedestrian_y_list
+    if trajectory_type == 1:
+        ped_t = time + ttc
+        t_list_ped = np.arange(0, ped_t, 0.2)
+        pedestrian_x_list = [pedestrian_x_start] * len(t_list_ped)
+        pedestrian_y_list = [pedestrian_y_start + ped_v * t for t in t_list_ped]
+        return vehicle_x_list, vehicle_y_list, label, x_t_list, pedestrian_x_list, pedestrian_y_list
     else:
-        return vehicle_x_list, vehicle_y_list, label
+        return vehicle_x_list, vehicle_y_list, label, x_t_list
 
 def plot_trajectories(trajectories, pedestrian_trajectory=None, ax=None):
+    """
+    Plot the trajectories of the vehicle and optionally the pedestrian trajectory.
+
+    Parameters:
+    trajectories (list): List of trajectories to plot.
+    pedestrian_trajectory (tuple, optional): Tuple of x and y coordinates for the pedestrian trajectory. Defaults to None.
+    """
     if ax is None:
         ax = plt.gca()
     ax.set_title("Trajectory Planner")
@@ -175,11 +209,11 @@ def plot_trajectories(trajectories, pedestrian_trajectory=None, ax=None):
     ax.legend()
 
 def simulate_vehicle_with_pid(trajectories, pedestrian_trajectory=None, ax=None):
-    dt = 0.01
-    total_time = 30  # Simulate for 30 seconds
-    vehicle = Vehicle(0, 0, 0, 10, dt)
+    dt = 0.03
+    total_time = 23.49  # Simulate for 30 seconds
+    vehicle = Vehicle(92.5, 0, 0, 5, dt)
     #pid = PIDController(Kp=2.0, Ki=0.3, Kd=0.2, dt=dt)
-    pid = PIDController(Kp=2.0, Ki=0.3, Kd=0.22, dt=dt)
+    pid = PIDController(Kp=1.3, Ki=0.003, Kd=3.8, dt=dt)
 
     # Combine all trajectory points
     trajectory_x = []
@@ -191,15 +225,17 @@ def simulate_vehicle_with_pid(trajectories, pedestrian_trajectory=None, ax=None)
     x_positions = []
     y_positions = []
 
-    for _ in np.arange(0, total_time, dt):
+    for t in np.arange(0, total_time, dt):
         if len(trajectory_x) == 0:
             break
 
         closest_index = np.argmin(np.hypot(np.array(trajectory_x) - vehicle.x, np.array(trajectory_y) - vehicle.y))
+        #print(closest_index)
         #target_x = trajectory_x[closest_index]
         target_y = trajectory_y[closest_index]
 
         # Compute the steering angle using PID controller
+        #print(target_y, vehicle.y)
         steering_angle = pid.compute(setpoint=target_y, current_value=vehicle.y)
         vehicle.delta = steering_angle
 
@@ -208,54 +244,57 @@ def simulate_vehicle_with_pid(trajectories, pedestrian_trajectory=None, ax=None)
         x_positions.append(vehicle.x)
         y_positions.append(vehicle.y)
 
+    #print(len(trajectory_x), len(trajectory_y))
+    #print(len(x_positions), len(x_positions))
+
     if ax is None:
         ax = plt.gca()
     ax.set_title("Vehicle Trajectory with PID Control")
     ax.plot(x_positions, y_positions, label="Vehicle Trajectory")
     ax.plot(trajectory_x, trajectory_y, label="Desired Trajectory", linestyle='dashed')
     if pedestrian_trajectory:
-        ax.scatter(pedestrian_trajectory[0], pedestrian_trajectory[1], label="Pedestrian Trajectory", color='red', s=10)
+        ax.scatter(pedestrian_trajectory[0], pedestrian_trajectory[1], label="Pedestrian Trajectory", color='green', s=10)
     ax.scatter(x_positions[0], y_positions[0], color='red', label="Start Position")
     ax.set_xlabel("X Position (m)")
     ax.set_ylabel("Y Position (m)")
     ax.legend()
     ax.grid(True)
     #ax.axis('equal')
+    ax.set_xlim(left=0)
     ax.set_ylim(-10, 10)
 
 def main():
-    s0, v0, a0, sf, vf, af, ego_v, ped_v, trigger_t = 0, 0, 0, 0, 0, 0, 10, 0.17, 7
+    #Initial Conditions
+    s0 = 0 #Initial postion at t = 0
+    v0 = 0 #Initial velocity at t = 0
+    a0 = 0 #Initial acceleration at t = 0
 
-    # print(f"Waiting for {trigger_t} seconds before starting calculations...")
-    # tm.sleep(trigger_t)
+    #Final Conditions
+
+    sf = 3.5 #Desired final position at some final time T
+    vf = 0 #Desired final velocity a t = T
+    af = 0 #Desired final acceleration at t = T
+
+    #Other Parameters 
+    ego_v = 5 #(m/s) Ego vehicle velocity
+    ped_v = 0.15 #(m/s) Pedestrian velocity,
+    trigger_t = 18.5 #A triggering time for initiating the maneuvor
+    pedestrian_x_start = 100 # Pedestrian starting x co-ordinate
+    pedestrian_y_start = -2 # Pedestrian starting y co-ordinate
     
-    #print("Starting calculations...")
-    #tm.sleep(trigger_t)
-    
-    traj1 = calculate_trajectory(1, s0, v0, a0, sf, vf, af, ego_v)
-    
-    s0 = traj1[1][-1]
-    sf = 3.5
-    time = traj1[0][-1]
-    
-    traj2 = calculate_trajectory(2, s0, v0, a0, sf, vf, af, ego_v, ped_v, time)
-    
-    s0 = traj2[1][-1]
-    sf = 3.5
-    time = traj2[0][-1]
-    
-    traj3 = calculate_trajectory(3, s0, v0, a0, sf, vf, af, ego_v, time=time)
-    
-    s0 = traj3[1][-1]
+    trajectory1 = calculate_trajectory(1, s0, v0, a0, sf, vf, af, ego_v, ped_v, pedestrian_x_start, pedestrian_y_start, time=trigger_t)
+    s0 = trajectory1[1][-1]
+
+    trajectory2 = calculate_trajectory(2, s0, v0, a0, sf, vf, af, ego_v, ped_v, pedestrian_x_start, pedestrian_y_start, time=trajectory1[3][-1])
+    s0 = trajectory2[1][-1]
     sf = 0
-    time = traj3[0][-1]
-    
-    traj4 = calculate_trajectory(4, s0, v0, a0, sf, vf, af, ego_v, time=time)
-    
-    fig, axs = plt.subplots(1, 2, figsize=(20, 10))
 
-    plot_trajectories([traj1, traj2, traj3, traj4], pedestrian_trajectory=(traj2[3], traj2[4]), ax=axs[0])
-    simulate_vehicle_with_pid([traj1, traj2, traj3, traj4], pedestrian_trajectory=(traj2[3], traj2[4]), ax=axs[1])
+    trajectory3 = calculate_trajectory(3, s0, v0, a0, sf, vf, af, ego_v, ped_v, pedestrian_x_start, pedestrian_y_start, time=trajectory2[3][-1])
+    #print(len(trajectory3[0]), len(trajectory3[1]))
+    fig, axs = plt.subplots(1, 1, figsize=(20, 10))
+
+    #plot_trajectories([trajectory1, trajectory2, trajectory3], pedestrian_trajectory=(trajectory1[4], trajectory1[5]), ax=axs[0])
+    simulate_vehicle_with_pid([trajectory1, trajectory2, trajectory3], pedestrian_trajectory=(trajectory1[4], trajectory1[5]), ax=None)
 
     plt.show()
 
