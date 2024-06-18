@@ -72,7 +72,7 @@ def main():
     Ki=10
     Kd=3.8
     dt=0.03
-    sim_time = 30
+    sim_time = 10
 
     calculate_trajectory = True
     plot_plannar_trajectory = True
@@ -107,9 +107,9 @@ def main():
                             vel=ego_v, 
                             dt=dt)
 
-        pid_controller = pid.PIDController(Kp=150, 
-                                Ki=10, 
-                                Kd=3.8, 
+        pid_controller = pid.PIDController(Kp=Kp, 
+                                Ki=Ki, 
+                                Kd=Kd, 
                                 dt=dt)
         
         vehicle_trajectory = vm.simulate_vehicle_with_pid(pid_controller,
