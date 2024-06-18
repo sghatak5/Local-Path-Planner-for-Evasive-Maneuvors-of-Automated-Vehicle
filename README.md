@@ -68,4 +68,7 @@ Provides functions to plot planned trajectories and vehicle motions.
 - Install dependencies
      ```bash
      pip install numpy matplotlib
-    
+- Execute `main.py`
+     ```bash
+     python main.py
+View generated plots and console output for trajectory planning and vehicle simulation.

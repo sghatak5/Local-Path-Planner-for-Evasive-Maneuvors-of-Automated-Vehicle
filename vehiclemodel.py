@@ -6,6 +6,16 @@ import pidcontroller as pid
 
 class Vehicle:
     def __init__(self, x, y, delta, vel, dt):
+        """
+        Initialize the Vehicle object.
+
+        Parameters:
+        x (float): Initial x position of the vehicle.
+        y (float): Initial y position of the vehicle.
+        delta (float): Initial steering angle of the vehicle.
+        vel (float): Velocity of the vehicle.
+        dt (float): Time step for simulation.
+        """
         self.vel = vel  # Vehicle velocity
         self.x = x  # X position
         self.y = y  # Y position
@@ -31,7 +41,15 @@ class Vehicle:
         self.Iz = 430.166  # Yaw moment of inertia
 
     def deg_to_rad(self, deg):
-        """Convert degrees to radians."""
+        """
+        Convert degrees to radians.
+
+        Parameters:
+        deg (float): Angle in degrees.
+
+        Returns:
+        float: Angle in radians.
+        """
         return deg * math.pi / 180
     
     def Motion_model(self):
@@ -74,7 +92,23 @@ class Vehicle:
 
     
 def simulate_vehicle_with_pid(pid, trajectories, vehicle, dt, sim_time):
-    # Combine all trajectory points
+    """
+    Simulate the vehicle motion using a PID controller.
+
+    Parameters:
+    pid_controller (PIDController): The PID controller object.
+    trajectories (list): List of trajectories to follow.
+    vehicle (Vehicle): The vehicle object.
+    dt (float): Time step for simulation.
+    sim_time (float): Total simulation time.
+
+    Returns:
+    tuple: x_positions, y_positions, trajectory_x, trajectory_y
+        - x_positions (list): X coordinates of the vehicle over time.
+        - y_positions (list): Y coordinates of the vehicle over time.
+        - trajectory_x (list): X coordinates of the desired trajectory.
+        - trajectory_y (list): Y coordinates of the desired trajectory.
+    """
     trajectory_x = []
     trajectory_y = []
     for traj in trajectories:
@@ -89,12 +123,10 @@ def simulate_vehicle_with_pid(pid, trajectories, vehicle, dt, sim_time):
             break
 
         closest_index = np.argmin(np.hypot(np.array(trajectory_x) - vehicle.x, np.array(trajectory_y) - vehicle.y))
-        #print(closest_index)
-        #target_x = trajectory_x[closest_index]
         target_y = trajectory_y[closest_index]
 
         # Compute the steering angle using PID controller
-        #print(target_y, vehicle.y)
+        
         steering_angle = pid.compute(setpoint=target_y, current_value=vehicle.y)
         vehicle.delta = steering_angle
 

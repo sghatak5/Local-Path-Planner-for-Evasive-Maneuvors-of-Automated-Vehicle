@@ -2,11 +2,12 @@ import matplotlib.pyplot as plt
 
 def plot_plannar_trajectories(trajectories, pedestrian_trajectory=None):
     """
-    Plot the trajectories of the vehicle and optionally the pedestrian trajectory.
+    Plot the planned trajectories of the vehicle and optionally the pedestrian trajectory.
 
-    Parameters:
-    trajectories (list): List of trajectories to plot.
-    pedestrian_trajectory (tuple, optional): Tuple of x and y coordinates for the pedestrian trajectory. Defaults to None.
+    Args:
+        trajectories (list): List of trajectories to plot. Each trajectory should be a tuple where the first element 
+                             is the x coordinates, the second element is the y coordinates, and the third element is the label.
+        pedestrian_trajectory (tuple, optional): Tuple of x and y coordinates for the pedestrian trajectory. Defaults to None.
     """
     plt.figure(figsize=(12, 8))
     plt.title("Coordinate of the center of rear axle")
@@ -26,7 +27,16 @@ def plot_plannar_trajectories(trajectories, pedestrian_trajectory=None):
     plt.legend()
     plt.show()
 
-def plot_vehicle_trajectories(vehicle_trajectory, pedestrian_trajectory, ax):
+def plot_vehicle_trajectories(vehicle_trajectory, pedestrian_trajectory, ax):#
+    """
+    Plot the vehicle's trajectory with PID control and optionally the pedestrian trajectory.
+
+    Args:
+        vehicle_trajectory (tuple): Tuple containing the vehicle's actual x and y positions, and the desired x and y positions.
+                                    The tuple format should be (vehicle_x, vehicle_y, desired_x, desired_y).
+        pedestrian_trajectory (tuple, optional): Tuple of x and y coordinates for the pedestrian trajectory. Defaults to None.
+        ax (matplotlib.axes._axes.Axes, optional): Matplotlib axes object to plot on. Defaults to None.
+    """
     if ax is None:
         ax = plt.gca()
     ax.set_title("Vehicle Trajectory with PID Control")
@@ -39,9 +49,7 @@ def plot_vehicle_trajectories(vehicle_trajectory, pedestrian_trajectory, ax):
     ax.set_ylabel("Y Position (m)")
     ax.legend()
     ax.grid(True)
-    #ax.axis('equal')
-    #ax.set_xlim(left=0)
     ax.set_ylim(-10, 10)
 
     plt.show()
-    pass
+    
