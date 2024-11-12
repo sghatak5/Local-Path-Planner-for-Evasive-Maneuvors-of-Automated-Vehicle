@@ -3,6 +3,9 @@
 This project simulates a vehicle trajectory planning and control using Python.  
 The system incorporates trajectory planning, vehicle dynamics modeling, PID control, and visualization of trajectories.
 
+- [Video 1](https://github.com/sghatak5/sghatak5/blob/main/Pathplanning_demo.gif)
+- [Video 2](https://github.com/sghatak5/sghatak5/blob/main/Pathplanning_demo2.gif)
+
 ## Overview
 
 The system is composed of several Python modules:
